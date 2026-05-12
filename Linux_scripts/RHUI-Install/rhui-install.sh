@@ -1,5 +1,80 @@
 #!/bin/bash
-
+#===============================================================================
+# RHUI Installation Automation Script for Microsoft Azure RHEL Images
+#===============================================================================
+#
+# PURPOSE
+# -------
+# This script automatically installs the correct RHUI package and repository
+# configuration for Red Hat Enterprise Linux virtual machines running in
+# Microsoft Azure.
+#
+# The script detects:
+#   - RHEL major/minor version
+#   - Azure image type
+#   - EUS eligibility
+#   - SAP / HA image variants
+#   - Last supported releases
+#
+# Based on detected VM metadata, the script automatically selects:
+#   - Correct RHUI package
+#   - Correct RHUI repository
+#   - EUS or Non-EUS model
+#   - releasever version lock requirement
+#
+#
+# SUPPORTED IMAGE TYPES
+# ---------------------
+#   - Standard RHEL images
+#   - SAP images
+#   - SAP Apps images
+#   - SAP HA images
+#   - HA images
+#
+#
+# SUPPORTED RHEL VERSIONS
+# -----------------------
+#   - RHEL 7
+#   - RHEL 8
+#   - RHEL 9
+#   - RHEL10
+#
+#
+# IMPORTANT NOTES
+# ---------------
+# 1. SAPAPPS / SAP-HA / HA images support only:
+#       - Even-numbered EUS/E4S releases
+#       - Last supported releases
+#
+# 2. Last supported releases:
+#       - RHEL 7.9
+#       - RHEL 8.10
+#       - RHEL 9.10
+#       - RHEL 10.X
+#
+# 3. releasever lock is automatically configured for:
+#       - EUS-enabled systems
+#       - SAP/HA EUS-based images
+#
+# 4. releasever lock is NOT configured for:
+#       - Last supported releases
+#       - Non-EUS systems
+#
+#
+# USAGE
+# -----
+# chmod +x rhui-install.sh
+# sudo ./rhui-install.sh
+#
+#
+# REQUIREMENTS
+# ------------
+#   - Azure VM
+#   - Internet access to RHUI servers
+#   - curl package
+#   - root/sudo privileges
+#
+#===============================================================================
 set -euo pipefail
 
 METADATA_URL="http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01"
