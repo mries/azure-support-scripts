@@ -74,7 +74,7 @@ The script includes special handling for platform-specific behaviors:
 
 - Download and execute
 ```bash
-wget https://aka.ms/mountumounthelper
+wget -O mount-umount-helper.sh https://raw.githubusercontent.com/Azure/azure-support-scripts/ba2480b9601a9e33f3b3a6dc626c545a5c98091e/Linux_scripts/mount-umount-helper/mount-umount-helper.sh
 chmod +x mount-umount-helper.sh
 sudo ./mount-umount-helper.sh
 ```
