@@ -1,84 +1,7 @@
 #!/bin/bash
-#===============================================================================
-# RHUI Installation Automation Script for Microsoft Azure RHEL Images
-#===============================================================================
-#
-# PURPOSE
-# -------
-# This script automatically installs the correct RHUI package and repository
-# configuration for Red Hat Enterprise Linux virtual machines running in
-# Microsoft Azure.
-#
-# The script detects:
-#   - RHEL major/minor version
-#   - Azure image type
-#   - EUS eligibility
-#   - SAP / HA image variants
-#   - Last supported releases
-#
-# Based on detected VM metadata, the script automatically selects:
-#   - Correct RHUI package
-#   - Correct RHUI repository
-#   - EUS or Non-EUS model
-#   - releasever version lock requirement
-#
-#
-# SUPPORTED IMAGE TYPES
-# ---------------------
-#   - Standard RHEL images
-#   - SAP images
-#   - SAP Apps images
-#   - SAP HA images
-#   - HA images
-#
-#
-# SUPPORTED RHEL VERSIONS
-# -----------------------
-#   - RHEL 7
-#   - RHEL 8
-#   - RHEL 9
-#   - RHEL10
-#
-#
-# IMPORTANT NOTES
-# ---------------
-# 1. SAPAPPS / SAP-HA / HA images support only:
-#       - Even-numbered EUS/E4S releases
-#       - Last supported releases
-#
-# 2. Last supported releases:
-#       - RHEL 7.9
-#       - RHEL 8.10
-#       - RHEL 9.10
-#       - RHEL 10.X
-#
-# 3. releasever lock is automatically configured for:
-#       - EUS-enabled systems
-#       - SAP/HA EUS-based images
-#
-# 4. releasever lock is NOT configured for:
-#       - Last supported releases
-#       - Non-EUS systems
-#
-#
-# USAGE
-# -----
-# chmod +x rhui-install.sh
-# sudo ./rhui-install.sh
-#
-#
-# REQUIREMENTS
-# ------------
-#   - Azure VM
-#   - Internet access to RHUI servers
-#   - curl package
-#   - root/sudo privileges
-#
-#===============================================================================
+
 set -euo pipefail
 
-METADATA_URL="http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01"
-HEADER="Metadata:true"
 RHUI_HOST="rhui4-1.microsoft.com"
 
 #--------------------------------------------------
@@ -160,37 +83,92 @@ fi
 ok "RHUI not present"
 
 #--------------------------------------------------
-# 3. Azure Metadata
+# 3. Billing Model Selection
 #--------------------------------------------------
-section "Fetching Azure Metadata"
+section "Select Billing Model"
 
-METADATA=$(curl -s -H "$HEADER" "$METADATA_URL") || fail "Metadata fetch failed"
+echo "Available Billing Models"
+echo
+echo "1) PAYG (Pay-As-You-Go)"
+echo "2) BYOS (Bring Your Own Subscription)"
+echo
 
-OFFER=$(echo "$METADATA" | grep -oP '"offer":\s*"\K[^"]+' | head -1)
-SKU=$(echo "$METADATA" | grep -oP '"sku":\s*"\K[^"]+' | head -1)
+read -rp "Enter choice [1-2]: " BILLING_CHOICE
 
-ok "Offer : $OFFER"
-ok "SKU   : $SKU"
+case "$BILLING_CHOICE" in
+    1)
+        BILLING_MODEL="PAYG"
+        ;;
+    2)
+        BILLING_MODEL="BYOS"
+        ;;
+    *)
+        fail "Invalid billing model selection"
+        ;;
+esac
+
+ok "Billing Model : $BILLING_MODEL"
 
 #--------------------------------------------------
-# 4. Detect Image Type
+# BYOS Validation
 #--------------------------------------------------
-section "Detecting Image Type"
 
-SKU_LOWER=$(echo "$SKU" | tr '[:upper:]' '[:lower:]')
-IMAGE_SUFFIX="standard"
+if [[ "$BILLING_MODEL" == "BYOS" ]]; then
 
-if echo "$SKU_LOWER" | grep -q "sapapps"; then
-    IMAGE_SUFFIX="sapapps"
-elif echo "$SKU_LOWER" | grep -q "sap" && echo "$SKU_LOWER" | grep -q "ha"; then
-    IMAGE_SUFFIX="sap-ha"
-elif echo "$SKU_LOWER" | grep -q "sap"; then
-    IMAGE_SUFFIX="sap"
-elif echo "$SKU_LOWER" | grep -q "ha"; then
-    IMAGE_SUFFIX="ha"
+    echo
+    line
+
+    echo "BYOS (Bring Your Own Subscription) selected."
+    echo
+    echo "RHUI repositories are not intended for BYOS systems."
+    echo
+    echo "Please register the system using subscription-manager"
+    echo "and connect it to Red Hat CDN or your Satellite server."
+    echo
+    echo "https://access.redhat.com/solutions/253273"
+    echo
+    echo "RHUI installation is not applicable for BYOS systems."
+
+    line
+    echo
+
+    exit 0
 fi
 
-ok "Detected Image Type : $IMAGE_SUFFIX"
+#--------------------------------------------------
+# 4. Select Image Type
+#--------------------------------------------------
+section "Select Image Type"
+
+echo "Available Image Types"
+echo
+echo "1) Standard"
+echo "2) SAP Apps"
+echo "3) SAP HA"
+echo "4) HA"
+echo
+
+read -rp "Enter choice [1-4]: " IMAGE_CHOICE
+
+case "$IMAGE_CHOICE" in
+    1)
+        IMAGE_SUFFIX="standard"
+        ;;
+    2)
+        IMAGE_SUFFIX="sapapps"
+        ;;
+    3)
+        IMAGE_SUFFIX="sap-ha"
+        ;;
+    4)
+        IMAGE_SUFFIX="ha"
+        ;;
+    *)
+        fail "Invalid image type selection"
+        ;;
+esac
+
+ok "Selected Image Type : $IMAGE_SUFFIX"
 
 #--------------------------------------------------
 # Unsupported SAP / HA Minor Version Validation
@@ -326,6 +304,23 @@ else
 
     fi
 
+fi
+
+#--------------------------------------------------
+# Installation Confirmation
+#--------------------------------------------------
+section "Installation Summary"
+
+echo "Billing Model : $BILLING_MODEL"
+echo "Image Type    : $IMAGE_SUFFIX"
+echo "OS Version    : $OS_VERSION.$OS_MINOR"
+echo
+
+read -rp "Continue with RHUI installation? [y/N]: " CONFIRM
+
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    info "Installation cancelled by user"
+    exit 0
 fi
 
 #--------------------------------------------------
@@ -489,9 +484,9 @@ echo "Summary"
 
 line
 
+echo "Billing   : $BILLING_MODEL"
 echo "OS        : $PRETTY_NAME"
 echo "Image     : $IMAGE_SUFFIX"
 echo "Repo      : $REPO_NAME"
 echo "Package   : $(rpm -qa | grep -i rhui)"
-
 line

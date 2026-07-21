@@ -74,7 +74,7 @@ The script includes special handling for platform-specific behaviors:
 
 - Download and execute
 ```bash
-wget https://aka.ms/mountumounthelper
+wget -O mount-umount-helper.sh https://aka.ms/mountumounthelper
 chmod +x mount-umount-helper.sh
 sudo ./mount-umount-helper.sh
 ```
